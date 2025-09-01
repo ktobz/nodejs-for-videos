@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Foodville</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- chroma.js for dynamic theming -->
+  <script src="https://unpkg.com/chroma-js@2.4.2/chroma.min.js"></script>
+  <style>
+    :root {
+      /* will be set by chroma at runtime */
+      --bg: #0f0f0f;
+      --bg-accent: #151515;
+      --panel: #181818;
+      --panel-2: #1f1f1f;
+      --ring: #ff8a3d;
+      --accent: #ff7a18;
+      --accent-2: #ffb36b;
+      --text: #ffffff;
+    --muted: #d6d3d1;
+  }
+  html, body { height: 100%; }
+    body {
+      background: radial-gradient(1200px 800px at 10% -10%, rgba(255,122,24,.08), transparent 60%),
+                  radial-gradient(800px 500px at 90% 10%, rgba(255,179,107,.06), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', Roboto, system-ui, -apple-system, 'Helvetica Neue', Arial;
+    }
+    .glass { background: color-mix(in oklab, var(--panel) 86%, black 14%); backdrop-filter: blur(10px); }
+    .ring-accent { box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 75%, transparent); }
+    .card { background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 92%, black 8%), var(--panel-2)); box-shadow: var(--shadow); }
+    .btn-primary { background: var(--accent); color:#000; }
+    .btn-primary:hover { background: var(--accent-2); }
+    .btn-ghost { background: #fff; color:#000; }
+    .btn-ghost:hover { background: #e5e5e5; }
+    .badge { background: color-mix(in oklab, var(--accent) 18%, black); color: var(--accent-2); }
+    .text-xxs { font-size: .70rem; line-height: .95rem; }
+    img, video, iframe { object-fit: cover; }
+    .modal-bg { background: rgba(0,0,0,.6); }
+    .ring-float { box-shadow: 0 10px 40px -10px color-mix(in oklab, var(--ring) 45%, transparent); }
+  </style>
+</head>
+<body>
+  <div id="root"></div><script type="text/javascript">
+  const { useState, useEffect } = React;
+
+  function App() {
+    const [recipes, setRecipes] = useState([]);
+
+    useEffect(() => {
+      fetch("http://localhost:5000/api/recipes")
+        .then(res => res.json())
+        .then(data => setRecipes(data))
+        .catch(err => console.error("Error fetching recipes:", err));
+    }, []);
+
+    return (
+      <div className="p-6">
+        <h1 className="text-3xl font-bold mb-4">🍲 Foodville Recipes</h1>
+        <div className="grid grid-cols-3 gap-4">
+          {recipes.map(recipe => (
+            <div key={recipe.id} className="p-4 border rounded-lg shadow">
+              <h2 className="font-semibold">{recipe.name}</h2>
+              <p>{recipe.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.render(<App />, document.getElementById("root"));
+</script>
+
+
+  <script type="text/babel">
+    const { useState, useMemo, useRef, useEffect, useContext, createContext } = React;
+
+    /* --------------------------- Chroma Theme --------------------------- */
+    const ThemeContext = createContext();
+
+    function useChromaTheme() {
+      const [theme, setTheme] = useState(() => buildTheme('#0f0f0f', '#ff7a18'));
+
+      useEffect(() => {
+        applyTheme(theme);
+        // Set global text color and background for light/dark mode
+        const isDark = chroma(theme.bg).luminance() < 0.2;
+        document.body.style.color = isDark ? '#fff' : '#222';
+        if (!isDark) {
+          document.body.style.background =
+            'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%), ' +
+            'radial-gradient(circle at 80% 20%, #ffe5b4 0%, transparent 60%), ' +
+            'radial-gradient(circle at 10% 80%, #c7f9cc 0%, transparent 60%)';
+        } else {
+          document.body.style.background =
+            'radial-gradient(1200px 800px at 10% -10%, rgba(255,122,24,.08), transparent 60%), ' +
+            'radial-gradient(800px 500px at 90% 10%, rgba(255,179,107,.06), transparent 60%), ' +
+            theme.bg;
+        }
+      }, [theme.bg]); // Only depend on theme.bg for instant switch
+
+      function buildTheme(bgBase, accentBase) {
+        const accent = chroma(accentBase);
+        const accent2 = accent.brighten(1.25);
+        const ring = chroma.mix(accent, '#ffffff', 0.25, 'lab');
+        const bg = chroma(bgBase);
+        const bgAccent = bg.brighten(.25);
+        const panel = bg.brighten(.6);
+        const panel2 = panel.brighten(.3);
+        return {
+          bg: bg.hex(),
+          bgAccent: bgAccent.hex(),
+          panel: panel.hex(),
+          panel2: panel2.hex(),
+          text: '#ffffff',
+          muted: '#d6d3d1',
+          accent: accent.hex(),
+          accent2: accent2.hex(),
+          ring: ring.hex(),
+        };
+      }
+
+      function applyTheme(t) {
+        const root = document.documentElement;
+        root.style.setProperty('--bg', t.bg);
+        root.style.setProperty('--bg-accent', t.bgAccent);
+        root.style.setProperty('--panel', t.panel);
+        root.style.setProperty('--panel-2', t.panel2);
+        root.style.setProperty('--text', t.text);
+        root.style.setProperty('--muted', t.muted);
+        root.style.setProperty('--accent', t.accent);
+        root.style.setProperty('--accent-2', t.accent2);
+        root.style.setProperty('--ring', t.ring);
+      }
+
+      // Only toggle between light and dark mode
+      function toggleMode() {
+        const isDark = chroma(theme.bg).luminance() < 0.2;
+        if (isDark) {
+          setTheme(buildTheme('#f5f5f5', '#ff7a18'));
+        } else {
+          setTheme(buildTheme('#0f0f0f', '#ff7a18'));
+        }
+      }
+
+      return { theme, toggleMode };
+    }
+
+    function ThemeProvider({ children }){
+      const value = useChromaTheme();
+      return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+    }
+
+    function useTheme(){ return useContext(ThemeContext); }
+
+    /* ----------------------------- Data ------------------------------ */
+    // Original recipes (as provided) + 20 appended + 5 NEW appended
+    const originalRecipes = [
+      { name: 'Spaghetti', img: 'pizza.jfif', price: 12, rating: 4.5, ingredients: ['spaghetti', 'beef'], time: 30, fullRecipe: 'Boil pasta, cook beef, mix with sauce.' },
+      { name: 'Veggie Stir', img: 'spaghetti bolo.jfif', price: 10, rating: 4.2, ingredients: ['veggies'], time: 20, fullRecipe: 'Stir-fry fresh vegetables with seasoning.' },
+      { name: 'Pancakes', img: 'tacos.jpg', price: 8, rating: 4.7, ingredients: ['banana', 'flour'], time: 15, fullRecipe: 'Mix banana and flour, pan-fry till golden.' },
+      { name: 'Curry', img: 'food-plates-pacific-saury-rice-wallpaper-thumb.jpg', price: 14, rating: 4.6, ingredients: ['chicken', 'spices'], time: 40, fullRecipe: 'Cook chicken with spices and curry sauce.' },
+      { name: 'Egg Fried Rice', img: 'bbq ribs.jfif', price: 9, rating: 4.3, ingredients: ['rice', 'egg', 'peas'], time: 20, fullRecipe: 'Fry rice with egg and peas in soy sauce.' },
+      { name: 'Lasagna', img: 'spaghetti bolo.jfif', price: 16, rating: 4.8, ingredients: ['pasta', 'cheese', 'meat'], time: 50, fullRecipe: 'Layer pasta with meat and cheese, bake.' },
+      { name: 'Smoothie Bowl', img: 'tacos.jpg', price: 7, rating: 4.2, ingredients: ['berries', 'banana', 'yogurt'], time: 10, fullRecipe: 'Blend fruits, pour into bowl, top with seeds.' },
+      { name: 'Avocado Toast', img: 'delicious-bread-with-avocado_935552-1023.jpg', price: 6, rating: 4.1, ingredients: ['bread', 'avocado', 'salt'], time: 5, fullRecipe: 'Mash avocado, spread on toast, season.' },
+      { name: 'Omelette', img: 'egg omlet.jfif', price: 5, rating: 4.0, ingredients: ['eggs', 'cheese', 'onion'], time: 10, fullRecipe: 'Whisk eggs, cook in pan with fillings.' },
+      { name: 'BBQ Ribs', img: 'ribs t bone.jpg', price: 18, rating: 4.7, ingredients: ['ribs', 'bbq sauce'], time: 90, fullRecipe: 'Slow cook ribs, brush with BBQ sauce.' },
+      { name: 'Miso Soup', img: 'bbq ribs.jfif', price: 6, rating: 4.5, ingredients: ['miso', 'tofu', 'seaweed'], time: 15, fullRecipe: 'Heat broth, add miso, tofu and seaweed.' },
+      { name: 'Shrimp Pasta', img: 'pasta', price: 14, rating: 4.4, ingredients: ['shrimp', 'pasta', 'garlic'], time: 25, fullRecipe: 'Cook shrimp with garlic, toss with pasta.' },
+      { name: 'Stuffed Peppers', img: 'burger.jfif', price: 13, rating: 4.3, ingredients: ['bell pepper', 'rice', 'meat'], time: 40, fullRecipe: 'Fill peppers with rice and meat, bake.' },
+      { name: 'Greek Salad', img: 'salad', price: 8, rating: 4.6, ingredients: ['feta', 'cucumber', 'olives'], time: 10, fullRecipe: 'Chop veggies, mix with feta and olives.' },
+      { name: 'Chocolate Cake', img: 'egg rice.jfif', price: 20, rating: 4.9, ingredients: ['chocolate', 'flour', 'eggs'], time: 60, fullRecipe: 'Mix ingredients, bake till cooked through.' },
+      { name: 'Apple Pie', img: 'spaghetti bolo.jfif', price: 12, rating: 4.6, ingredients: ['apple', 'flour', 'butter'], time: 60, fullRecipe: 'Prepare filling and bake in crust.' },
+      { name: 'Beef Tacos', img: 'miso soup.jpg', price: 11, rating: 4.5, ingredients: ['beef', 'tortilla', 'cheese'], time: 20, fullRecipe: 'Cook beef, assemble tacos.' },
+      { name: 'Chicken Alfredo', img: 'chicken.jfif', price: 15, rating: 4.7, ingredients: ['chicken', 'pasta', 'cream'], time: 30, fullRecipe: 'Make sauce, toss with pasta and chicken.' },
+      { name: 'Fish & Chips', img: 'pizza.jfif', price: 14, rating: 4.4, ingredients: ['fish', 'potatoes'], time: 45, fullRecipe: 'Fry fish and chips until crispy.' },
+      { name: 'Pumpkin Soup', img: 'egg omlet.jfif', price: 9, rating: 4.3, ingredients: ['pumpkin', 'cream'], time: 40, fullRecipe: 'Blend cooked pumpkin with cream.' },
+      { name: 'Caesar Salad', img: 'OIP3rrwr.jfif', price: 8, rating: 4.4, ingredients: ['lettuce', 'croutons', 'dressing'], time: 15, fullRecipe: 'Toss all ingredients.' },
+      { name: 'Beef Burger', img: 'food-plates-pacific-saury-rice-wallpaper-thumb.jpg', price: 13, rating: 4.8, ingredients: ['beef', 'bun', 'cheese'], time: 25, fullRecipe: 'Grill patty and assemble burger.' },
+      { name: 'Veggie Pizza', img: 'pizza.jfif', price: 14, rating: 4.5, ingredients: ['dough', 'vegetables', 'cheese'], time: 30, fullRecipe: 'Top dough and bake.' },
+      { name: 'Chicken Curry', img: 'istockphoto-1404001241-612x612.jpg', price: 14, rating: 4.7, ingredients: ['chicken', 'spices', 'cream'], time: 50, fullRecipe: 'Cook all together until tender.' },
+      { name: 'Steak', img: 'pizza.jfif', price: 18, rating: 4.9, ingredients: ['beef steak'], time: 40, fullRecipe: 'Season and pan-sear steak.' },
+      { name: 'Shrimp Cocktail', img: 'bbq ribs.jfif', price: 12, rating: 4.5, ingredients: ['shrimp', 'sauce'], time: 20, fullRecipe: 'Cook and chill shrimp.' },
+      { name: 'Quiche Lorraine', img: 'chicken.jfif', price: 13, rating: 4.6, ingredients: ['eggs', 'bacon', 'cheese'], time: 45, fullRecipe: 'Bake eggs in pastry.' },
+      { name: 'Ramen', img: 'OIP3rrwr.jfif', price: 11, rating: 4.7, ingredients: ['noodles', 'broth'], time: 35, fullRecipe: 'Simmer broth, add ingredients.' },
+      { name: 'Sausage Rolls', img: 'images.jfif', price: 10, rating: 4.4, ingredients: ['sausage', 'pastry'], time: 30, fullRecipe: 'Wrap sausages, bake.' },
+      { name: 'Falafel', img: 'ribs t bone.jpg', price: 9, rating: 4.5, ingredients: ['chickpeas', 'spices'], time: 40, fullRecipe: 'Fry blended chickpea balls.' },
+      { name: 'Pad Thai', img: 'salad', price: 13, rating: 4.8, ingredients: ['noodles', 'shrimp', 'peanuts'], time: 30, fullRecipe: 'Stir-fry everything.' },
+      { name: 'Poke Bowl', img: 'spaghetti bolo.jfif', price: 14, rating: 4.6, ingredients: ['fish', 'rice', 'veggies'], time: 25, fullRecipe: 'Assemble all ingredients.' },
+      { name: 'Gnocchi', img: 'tacos.jpg', price: 12, rating: 4.4, ingredients: ['potatoes', 'flour'], time: 35, fullRecipe: 'Boil then sauté gnocchi.' },
+      { name: 'Eggplant Parmesan', img: 'egg omlet.jfif', price: 12, rating: 4.5, ingredients: ['eggplant', 'cheese'], time: 50, fullRecipe: 'Layer and bake.' },
+      { name: 'Beef Stroganoff', img: 'food-plates-pacific-saury-rice-wallpaper-thumb.jpg', price: 15, rating: 4.7, ingredients: ['beef', 'cream'], time: 40, fullRecipe: 'Cook beef and sauce.' },
+      { name: 'Clam Chowder', img: 'pasta', price: 11, rating: 4.6, ingredients: ['clams', 'cream'], time: 45, fullRecipe: 'Simmer until thick.' },
+      { name: 'Bruschetta', img: 'pizza.jfif', price: 8, rating: 4.4, ingredients: ['bread', 'tomato', 'basil'], time: 15, fullRecipe: 'Toast bread and top.' },
+      { name: 'Cornbread', img: 'salad', price: 7, rating: 4.3, ingredients: ['cornmeal'], time: 30, fullRecipe: 'Bake cornbread.' },
+      { name: 'Lentil Soup', img: 'bbq ribs.jfif', price: 9, rating: 4.5, ingredients: ['lentils', 'veggies'], time: 50, fullRecipe: 'Simmer all ingredients.' },
+      { name: 'Chicken Wings', img: 'chicken.jfif', price: 12, rating: 4.6, ingredients: ['chicken wings', 'sauce'], time: 45, fullRecipe: 'Bake or fry wings with sauce.' },
+      { name: 'Nachos', img: 'tacos.jpg', price: 10, rating: 4.5, ingredients: ['tortilla chips', 'cheese'], time: 20, fullRecipe: 'Layer and bake nachos.' },
+      { name: 'Shrimp Fried Rice', img: 'pasta', price: 11, rating: 4.6, ingredients: ['rice', 'shrimp'], time: 25, fullRecipe: 'Stir-fry rice and shrimp.' },
+      { name: 'Macaron', img: 'delicious-bread-with-avocado_935552-1023.jpg', price: 2, rating: 4.4, ingredients: ['almond', 'sugar'], time: 60, fullRecipe: 'Bake delicate almond cookies.' },
+      { name: 'Chili', img: 'egg rice.jfif', price: 12, rating: 4.7, ingredients: ['beef', 'beans'], time: 60, fullRecipe: 'Simmer meat and beans.' },
+      { name: 'Tiramisu', img: 'istockphoto-1404001241-612x612.jpg', price: 15, rating: 4.8, ingredients: ['mascarpone', 'coffee'], time: 40, fullRecipe: 'Layer ladyfingers and cream.' },
+      { name: 'Crepes', img: 'spaghetti bolo.jfif', price: 8, rating: 4.6, ingredients: ['flour', 'milk', 'egg'], time: 20, fullRecipe: 'Cook thin pancakes.' },
+      { name: 'Paella', img: 'egg omlet.jfif', price: 16, rating: 4.7, ingredients: ['rice', 'seafood'], time: 60, fullRecipe: 'Cook rice with seafood.' },
+      // --- 20 additional recipes appended ---
+      { name: 'Matcha Pancakes', img: 'matcha.jpg', price: 9, rating: 4.5, ingredients: ['matcha', 'milk', 'flour'], time: 20, fullRecipe: 'Mix matcha into batter and cook.' },
+      { name: 'Shakshuka', img: 'shakshuka.jpg', price: 10, rating: 4.6, ingredients: ['eggs', 'tomato', 'pepper'], time: 30, fullRecipe: 'Simmer sauce, crack eggs, cook until set.' },
+      { name: 'Kimchi Fried Rice', img: 'kimchi.jpg', price: 11, rating: 4.7, ingredients: ['rice', 'kimchi', 'egg'], time: 20, fullRecipe: 'Stir-fry kimchi with rice and top with egg.' },
+      { name: 'Falooda', img: 'falooda.jpg', price: 5, rating: 4.2, ingredients: ['milk', 'vermicelli', 'syrup'], time: 10, fullRecipe: 'Layer ingredients and chill.' },
+      { name: 'Ceviche', img: 'ceviche.jpg', price: 13, rating: 4.6, ingredients: ['fish', 'lime', 'onion'], time: 25, fullRecipe: 'Marinate fish in citrus and serve fresh.' },
+      { name: 'Shawarma Wrap', img: 'shawarma.jpg', price: 9, rating: 4.5, ingredients: ['chicken', 'tortilla', 'sauce'], time: 25, fullRecipe: 'Grill spiced meat and wrap with veggies.' },
+      { name: 'Ratatouille', img: 'ratatouille.jpg', price: 10, rating: 4.4, ingredients: ['eggplant', 'tomato', 'zucchini'], time: 50, fullRecipe: 'Layer and bake vegetables with herbs.' },
+      { name: 'Pumpkin Risotto', img: 'risotto.jpg', price: 14, rating: 4.6, ingredients: ['rice', 'pumpkin', 'parmesan'], time: 40, fullRecipe: 'Slowly cook rice with pumpkin and stock.' },
+      { name: 'Belgian Waffles', img: 'waffles.jpg', price: 7, rating: 4.5, ingredients: ['flour', 'eggs', 'milk'], time: 20, fullRecipe: 'Whisk batter and cook in waffle iron.' },
+      { name: 'Mango Sticky Rice', img: 'mango.jpg', price: 6, rating: 4.7, ingredients: ['mango', 'rice', 'coconut'], time: 30, fullRecipe: 'Cook sticky rice and serve with mango.' },
+      { name: 'Sopes', img: 'sopes.jpg', price: 8, rating: 4.3, ingredients: ['masa', 'beans', 'cheese'], time: 30, fullRecipe: 'Form masa rounds, top with fillings.' },
+      { name: 'Okonomiyaki', img: 'okonomi.jpg', price: 12, rating: 4.6, ingredients: ['cabbage', 'egg', 'flour'], time: 25, fullRecipe: 'Mix and pan-fry savory pancake.' },
+      { name: 'Bulgogi', img: 'bulgogi.jpg', price: 15, rating: 4.8, ingredients: ['beef', 'soy', 'sugar'], time: 35, fullRecipe: 'Marinate beef and grill quickly.' },
+      { name: 'Paneer Tikka', img: 'paneer.jpg', price: 11, rating: 4.5, ingredients: ['paneer', 'spices'], time: 30, fullRecipe: 'Skewer marinated paneer and grill.' },
+      { name: 'Gulab Jamun', img: 'gulab.jpg', price: 4, rating: 4.4, ingredients: ['milk solids', 'syrup'], time: 45, fullRecipe: 'Fry dough balls and soak in syrup.' },
+      { name: 'Kimchi Stew', img: 'kimchi_stew.jpg', price: 13, rating: 4.6, ingredients: ['kimchi', 'tofu', 'pork'], time: 40, fullRecipe: 'Simmer kimchi with stock and tofu.' },
+      { name: 'Beetroot Carpaccio', img: 'beet.jpg', price: 9, rating: 4.2, ingredients: ['beetroot', 'olive oil'], time: 15, fullRecipe: 'Thinly slice beets and dress.' },
+      { name: 'Sourdough Loaf', img: 'sourdough.jpg', price: 6, rating: 4.7, ingredients: ['flour', 'starter'], time: 180, fullRecipe: 'Ferment dough and bake slowly.' },
+      { name: 'Mole Poblano', img: 'mole.jpg', price: 16, rating: 4.6, ingredients: ['chili', 'chocolate'], time: 90, fullRecipe: 'Slow cook rich mole sauce with turkey.' },
+      { name: 'Ricotta Gnocchi', img: 'ricotta.jpg', price: 13, rating: 4.5, ingredients: ['ricotta', 'flour'], time: 30, fullRecipe: 'Mix and boil tender dumplings.' },
+      { name: 'Baklava', img: 'baklava.jpg', price: 5, rating: 4.6, ingredients: ['phyllo', 'nuts', 'syrup'], time: 60, fullRecipe: 'Layer and bake with syrup.' },
+      { name: 'Caponata', img: 'caponata.jpg', price: 9, rating: 4.4, ingredients: ['eggplant', 'tomato', 'capers'], time: 40, fullRecipe: 'Sauté and sweeten eggplant relish.' },
+      // --- 5 NEW recipes appended (keeping all existing cards intact) ---
+      { name: 'Jollof Rice', img: 'jollof.jpg', price: 12, rating: 4.8, ingredients: ['rice','tomato','pepper'], time: 55, fullRecipe: 'Blend peppers & tomatoes, cook rice in the rich stew.' },
+      { name: 'Suya Skewers', img: 'suya.jpg', price: 10, rating: 4.7, ingredients: ['beef','peanut spice'], time: 25, fullRecipe: 'Coat beef with suya spice, grill to perfection.' },
+      { name: 'Chicken Yassa', img: 'yassa.jpg', price: 13, rating: 4.6, ingredients: ['chicken','onion','lemon'], time: 60, fullRecipe: 'Marinate chicken in lemon-onion mix, braise till tender.' },
+      { name: 'Plantain Pancakes', img: 'plantain_pancakes.jpg', price: 7, rating: 4.5, ingredients: ['ripe plantain','egg','flour'], time: 20, fullRecipe: 'Mash plantain, mix batter, pan-fry small rounds.' },
+      { name: 'Pepper Soup', img: 'peppersoup.jpg', price: 9, rating: 4.4, ingredients: ['goat','spice mix'], time: 45, fullRecipe: 'Simmer meat with pepper soup spices till aromatic.' },
+    ];
+
+    // Stable remote images via picsum, keep order & count
+    const recipesData = originalRecipes.map((r, idx) => ({
+      ...r,
+      img: `https://picsum.photos/seed/${encodeURIComponent(r.name + '_' + idx)}/600/600`
+    }));
+
+    /* --------------------------- Fake Auth --------------------------- */
+    const fakeAuth = {
+      users: [],
+      register({ name, email, password }){
+        if(this.users.find(u => u.email === email)) return { ok:false, message: 'Email already exists' };
+        this.users.push({ name, email, password });
+        return { ok:true };
+      },
+      login({ email, password }){
+        const u = this.users.find(x => x.email === email && x.password === password);
+        if(u) return { ok:true, user: u };
+        return { ok:false, message: 'Invalid credentials' };
+      }
+    };
+
+    // --- AI/Database/Caching/Password Simulation ---
+const aiDB = {
+  users: [],
+  cache: {},
+  saveUser(user) {
+    this.users.push(user);
+    this.cache[user.email] = user;
+  },
+  getUser(email) {
+    return this.cache[email] || this.users.find(u => u.email === email);
+  },
+  savePassword(email, password) {
+    const user = this.getUser(email);
+    if (user) user.password = password;
+  },
+  verifyPassword(email, password) {
+    const user = this.getUser(email);
+    return user && user.password === password;
+  }
+};
+
+    /* --------------------------- UI Components --------------------------- */
+    function Nav({ view, setView, showSearch, searchQuery, setSearchQuery, cartCount }){
+      const { theme, toggleMode } = useTheme();
+      const [isDark, setIsDark] = useState(chroma(theme.bg).luminance() < 0.2);
+      useEffect(() => {
+        setIsDark(chroma(theme.bg).luminance() < 0.2);
+      }, [theme]);
+      // Drag handler
+      function handleDrag(e) {
+        const x = e.clientX || (e.touches && e.touches[0].clientX);
+        if (x) {
+          toggleMode();
+        }
+      }
+      return (
+        <nav className="fixed top-0 w-full z-50" style={{
+          background: `linear-gradient(90deg, ${getCSS('--panel')} 0%, ${getCSS('--panel-2')} 100%)`,
+          borderBottom: `1px solid ${chroma(getCSS('--panel-2')).brighten(.25).hex()}`,
+          boxShadow: 'var(--shadow)',
+          color: isDark ? '#fff' : '#222'
+        }}>
+          <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div className="flex space-x-6 items-center">
+              <h1 className="text-2xl font-bold cursor-pointer" style={{color:getCSS('--accent')}} onClick={() => setView('home')}>Foodville</h1>
+              <button onClick={() => setView('home')} className="hover:underline">Home</button>
+              <button onClick={() => setView('recipes')} className="hover:underline">Recipes</button>
+              <button onClick={() => setView('videos')} className="hover:underline">Videos</button>
+              <button onClick={() => setView('about')} className="hover:underline">About</button>
+              <button onClick={() => setView('cart')} className="relative hover:underline">
+                <span className="inline-block align-middle mr-1">
+                  <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.35 2.7A1 1 0 007.6 17h8.8a1 1 0 00.95-.68L21 13M7 13V6a1 1 0 011-1h9a1 1 0 011 1v7" /></svg>
+                </span>
+                Cart{cartCount > 0 && <span className="ml-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-xs">{cartCount}</span>}
+              </button>
+            </div>
+            <div className="flex items-center space-x-2">
+              {showSearch && (
+                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                       className="rounded-full px-3 py-1 text-black text-sm"
+                       placeholder="Filter recipes..."/>
+              )}
+              <button onClick={() => setView('login')} className="px-3 py-1 rounded-full text-sm btn-primary">Login</button>
+              <button onClick={() => setView('register')} className="px-3 py-1 rounded-full text-sm btn-ghost">Register</button>
+              <div className="flex items-center">
+                <span className="mr-2 text-xs" style={{color:getCSS('--muted')}}>{isDark ? 'Dark' : 'Light'} Mode</span>
+                <div
+                  className={`w-12 h-6 flex items-center bg-gray-300 rounded-full p-1 cursor-pointer select-none`}
+                  style={{background: isDark ? '#222' : '#eee'}}
+                  onMouseDown={handleDrag}
+                  onTouchStart={handleDrag}
+                >
+                  <div
+                    className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 ${isDark ? 'translate-x-6' : ''}`}
+                    style={{background: isDark ? getCSS('--accent') : '#fff'}}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
+      );
+    }
+
+    function Hero() {
+      const { theme } = useTheme();
+      const isDark = chroma(theme.bg).luminance() < 0.2;
+      return (
+        <div className="rounded-3xl ring-float p-8 md:p-12 mb-8" style={{
+          background: `radial-gradient(1200px 500px at 10% -20%, ${chroma(getCSS('--accent')).alpha(.15).css()}, transparent 60%), linear-gradient(180deg, ${getCSS('--panel')} 0%, ${getCSS('--panel-2')} 100%)`
+        }}>
+          <h2 className="text-3xl md:text-4xl font-extrabold mb-2" style={{color: isDark ? '#fff' : '#222'}}>Welcome to Foodville!</h2>
+          <p className="text-sm md:text-base text-justify" style={{color: isDark ? getCSS('--muted') : '#222'}}>
+            Discover exotic flavors, easy-to-make meals, and chef recipes every week. Recipes are step-by-step guides that
+            turn ingredients into meals. From simple to gourmet, they can be tailored to your preferences and dietary needs. 
+generate a 300 word paragraph on food recipes
+
+Food recipes serve as the foundation of culinary exploration, transforming simple ingredients into memorable dining experiences that nourish both body and soul. A well-crafted recipe is more than just a list of ingredients and instructions. It's a roadmap that guides home cooks through the intricate dance of flavors, textures, and techniques that define great cooking. Whether you're preparing a simple weeknight pasta dish with garlic, olive oil, and fresh herbs, or embarking on the complex journey of making homemade sourdough bread that requires days of careful fermentation, recipes provide the structure and confidence needed to create delicious meals. The beauty of recipes lies in their versatility; they can be followed precisely for consistent results or used as springboards for creative improvisation. A basic tomato sauce recipe might call for onions, garlic, canned tomatoes, and basil, but experienced cooks know they can enhance it with roasted red peppers, a splash of wine, or a pinch of red pepper flakes to make it their own. Regional cuisines offer endless inspiration, from the aromatic spice blends of Indian curries to the delicate balance of umami in Japanese miso soup, each recipe carrying cultural stories and traditions passed down through generations. Modern recipe development has evolved to accommodate various dietary preferences and restrictions, with plant-based alternatives, gluten-free adaptations, and health-conscious modifications making cooking more inclusive than ever. The rise of social media and food blogs has democratized recipe sharing, allowing home cooks to exchange techniques and discover new flavor combinations from around the world. Ultimately, recipes are invitations to slow down, engage our senses, and create something meaningful with our hands, turning the daily necessity of eating into an opportunity for creativity, connection, and joy in the kitchen.
+
+
+
+
+
+
+
+
+          </p>
+        </div>
+      );
+    }
+
+    function Home({ onOpenModal, onCommentSubmit, submittedComment, handleAddToCart }){
+      const [comment, setComment] = useState('');
+      const submit = () => { if(!comment.trim()) return; onCommentSubmit(comment.trim()); setComment(''); };
+
+      return (
+        <div>
+          <Hero/>
+
+          <div className="mt-6 glass rounded-3xl p-6">
+            <h3 className="text-xl mb-2" style={{color:getCSS('--accent-2')}}>Leave a Comment</h3>
+            <textarea className="w-full p-3 rounded-2xl text-black mb-2" rows="4" placeholder="Share your thoughts..." />
+            <div className="flex items-center space-x-2">
+              <button className="px-5 py-2 rounded-full btn-primary">Submit</button>
+              {submittedComment && <p className="mt-1 text-sm" style={{color:'#22c55e'}}>Your comment: {submittedComment}</p>}
+            </div>
+          </div>
+
+          <h3 className="mt-10 text-xl mb-4" style={{color:getCSS('--accent')}}>Weekend Highlights</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {recipesData.slice(0,4).map((r, i) => (
+              <div key={i} className="relative rounded-2xl cursor-pointer transition overflow-hidden p-0 text-center card hover:-translate-y-1">
+                <div className="w-full h-40 md:h-48 overflow-hidden rounded-2xl" style={{boxShadow:`0 0 0 3px ${chroma(getCSS('--ring')).alpha(.7).css()}`}}>
+                  <img src={r.img} alt={r.name} className="w-full h-full object-cover rounded-2xl" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'1rem'}} />
+                </div>
+                <div className="mt-3">
+                  <h3 className="text-sm font-semibold" style={{color:getCSS('--accent-2')}}>{r.name}</h3>
+                  <p className="text-xxs" style={{color:getCSS('--muted')}}>{/* fallback if CSS var not found */}</p>
+                  <p className="text-xxs" style={{color: chroma(getCSS('--muted')).alpha(.9).css()}}>★ {r.rating} · ${r.price}</p>
+                  <button className="mt-2 px-3 py-1 rounded-full btn-primary text-xs" style={{color:'#222'}} onClick={()=>onOpenModal(r)}>View</button>
+                  <button className="mt-2 ml-2 px-3 py-1 rounded-full btn-ghost text-xs" style={{color:'#222'}} onClick={()=>handleAddToCart(r)}>Add to Cart</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function Recipes({ onOpenModal, searchQuery, handleAddToCart }){
+      const filtered = useMemo(() => recipesData.filter(r => {
+        const q = searchQuery.toLowerCase();
+        return (
+          r.name.toLowerCase().includes(q) ||
+          r.ingredients.join(' ').toLowerCase().includes(q) ||
+          (r.fullRecipe && r.fullRecipe.toLowerCase().includes(q))
+        );
+      }), [searchQuery]);
+      return (
+        <>
+          <h2 className="text-2xl font-bold mb-6" style={{color:getCSS('--accent')}}>All Recipes ({filtered.length})</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-5">
+            {filtered.map((r, i) => (
+              <div key={i} className="relative rounded-2xl shadow transition cursor-pointer overflow-hidden p-0 text-center card hover:-translate-y-0.5">
+                <div className="w-full h-40 md:h-48 overflow-hidden rounded-2xl" style={{ background:'#fff', boxShadow:`0 0 0 3px ${chroma(getCSS('--ring')).alpha(.35).css()}` }}>
+                  <img src={r.img} alt={r.name} className="w-full h-full object-cover rounded-2xl" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'1rem'}} />
+                </div>
+                <div className="mt-3">
+                  <h3 className="text-xs font-semibold truncate" style={{color:getCSS('--accent-2')}}>{r.name}</h3>
+                  <p className="text-xxs" style={{color: chroma(getCSS('--muted')).alpha(.9).css()}}>Price: ${r.price} · {r.rating}★</p>
+                  <button className="mt-2 px-3 py-1 rounded-full btn-primary text-xs" style={{color:'#222'}} onClick={()=>onOpenModal(r)}>View</button>
+                  <button className="mt-2 ml-2 px-3 py-1 rounded-full btn-ghost text-xs" style={{color:'#222'}} onClick={()=>handleAddToCart(r)}>Add to Cart</button>
+                </div>
+                <span className="absolute top-2 right-2 text-xxs px-2 py-0.5 rounded-full badge">★ {r.rating}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    function About(){
+      return (
+        <div className="glass rounded-3xl p-6">
+          <h2 className="text-2xl mb-2" style={{color:'#222'}}>About the Show</h2>
+          <p style={{color:'#222'}}>Foodville is a fun, informative cooking show hosted by chef Jamie Flame, bringing flavors from around the world into your kitchen every week.</p>
+        </div>
+      );
+    }
+
+    function Login({ onLogin }){
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [msg, setMsg] = useState(null);
+      const submit = (e) => {
+        e.preventDefault();
+        const res = fakeAuth.login({ email, password });
+        if(res.ok){ setMsg({ type:'success', text:'Login successful!' }); onLogin(res.user);} else { setMsg({ type:'error', text: res.message }); }
+      };
+      return (
+        <div className="max-w-md mx-auto rounded-3xl p-6 card">
+          <h3 className="text-xl font-semibold mb-4" style={{color:getCSS('--accent-2')}}>Login</h3>
+          <form onSubmit={submit}>
+            <label className="block mb-2 text-sm">Email</label>
+            <input required value={email} onChange={e=>setEmail(e.target.value)} className="w-full mb-3 p-2 rounded-xl text-black" type="email" />
+            <label className="block mb-2 text-sm">Password</label>
+            <input required value={password} onChange={e=>setPassword(e.target.value)} className="w-full mb-3 p-2 rounded-xl text-black" type="password" />
+            <div className="flex items-center justify-between">
+              <button className="px-5 py-2 rounded-full btn-primary" type="submit">Login</button>
+            </div>
+          </form>
+          {msg && <p className={`mt-3 ${msg.type==='success'?'text-green-400':'text-red-400'}`}>{msg.text}</p>}
+        </div>
+      );
+    }
+
+    function Register({ onRegister }){
+      const [name, setName] = useState('');
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [msg, setMsg] = useState(null);
+      const submit = (e) => {
+        e.preventDefault();
+        const res = fakeAuth.register({ name, email, password });
+        if(res.ok){ setMsg({ type:'success', text: 'Registered! You can now login.' }); onRegister({ name, email }); } else { setMsg({ type:'error', text: res.message }); }
+      };
+      return (
+        <div className="max-w-md mx-auto rounded-3xl p-6 card">
+          <h3 className="text-xl font-semibold mb-4" style={{color:getCSS('--accent-2')}}>Register</h3>
+          <form onSubmit={submit}>
+            <label className="block mb-2 text-sm">Full name</label>
+            <input required value={name} onChange={e=>setName(e.target.value)} className="w-full mb-3 p-2 rounded-xl text-black" type="text" />
+            <label className="block mb-2 text-sm">Email</label>
+            <input required value={email} onChange={e=>setEmail(e.target.value)} className="w-full mb-3 p-2 rounded-xl text-black" type="email" />
+            <label className="block mb-2 text-sm">Password</label>
+            <input required value={password} onChange={e=>setPassword(e.target.value)} className="w-full mb-3 p-2 rounded-xl text-black" type="password" />
+            <div className="flex items-center justify-between">
+              <button className="px-5 py-2 rounded-full btn-ghost" type="submit">Register</button>
+            </div>
+          </form>
+          {msg && <p className={`mt-3 ${msg.type==='success'?'text-green-400':'text-red-400'}`}>{msg.text}</p>}
+        </div>
+      );
+    }
+
+    function Modal({ item, onClose, onCommentSubmit }){
+      const [comment, setComment] = useState('');
+      const [comments, setComments] = useState([]);
+      if(!item) return null;
+      function submitComment() {
+        if (!comment.trim()) return;
+        setComments(prev => [...prev, comment.trim()]);
+        setComment('');
+        if (typeof onCommentSubmit === 'function') {
+          onCommentSubmit(comment.trim());
+        }
+        onClose();
+      }
+      return (
+        <div className="fixed inset-0 flex justify-center items-center modal-bg z-50 px-4">
+          <div className="rounded-2xl max-w-md w-full relative card p-4 md:p-6" style={{minHeight:'600px', maxHeight:'90vh', overflowY:'auto'}}>
+            <button onClick={onClose} className="absolute top-2 right-3 text-2xl leading-none" title="Close">&times;</button>
+            <div className="w-full h-56 md:h-64 overflow-hidden rounded-2xl" style={{boxShadow:`0 0 0 4px ${chroma(getCSS('--ring')).alpha(.75).css()}`}}>
+              <img src={item.img} alt="" className="w-full h-full object-cover rounded-2xl" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'1rem'}} />
+            </div>
+            <div className="text-center">
+              <h3 className="text-2xl font-bold mb-2" style={{color:getCSS('--accent-2')}}>{item.name}</h3>
+              <p><strong>Price:</strong> ${item.price}</p>
+              <p><strong>Rating:</strong> {item.rating}★</p>
+              <p><strong>Ingredients:</strong> {item.ingredients.join(', ')}</p>
+              <p><strong>Time:</strong> {item.time} minutes</p>
+              <p className="mt-2"><strong>Full Recipe:</strong> {item.fullRecipe}</p>
+            </div>
+            <div className="mt-6">
+              <h4 className="text-lg font-semibold mb-2" style={{color:getCSS('--accent')}}>Comments</h4>
+              <textarea className="w-full p-2 rounded-xl text-black mb-2" rows="3" placeholder="Add a comment..." value={comment} onChange={e=>setComment(e.target.value)} />
+              <button className="px-4 py-1 rounded-full btn-primary text-xs" onClick={submitComment}>Submit</button>
+              <ul className="mt-3">
+                {comments.map((c, idx) => <li key={idx} className="text-sm text-left mb-1" style={{color:getCSS('--muted')}}>• {c}</li>)}
+              </ul>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* --------- TheMealDB-powered Video Gallery (20 items, hover preview) ---------- */
+    function useMealDBVideos(targetCount = 20) {
+      const [videos, setVideos] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      useEffect(() => {
+        let cancelled = false;
+        async function load() {
+          setLoading(true); setError(null);
+          try {
+            const endpoints = [
+              'https://www.themealdb.com/api/json/v1/1/search.php?s=',
+              'https://www.themealdb.com/api/json/v1/1/filter.php?c=Beef',
+              'https://www.themealdb.com/api/json/v1/1/filter.php?c=Chicken',
+              'https://www.themealdb.com/api/json/v1/1/filter.php?c=Dessert'
+            ];
+            const res = await fetch(endpoints[0]);
+            const data = await res.json();
+            let meals = Array.isArray(data.meals) ? data.meals : [];
+            if (meals.filter(m => m.strYoutube).length < targetCount) {
+              const extraLists = await Promise.all(endpoints.slice(1).map(u => fetch(u).then(r => r.json()).catch(()=>({meals:[]}))));
+              const ids = extraLists.flatMap(x => (Array.isArray(x.meals) ? x.meals : [])).slice(0, 60).map(m => m.idMeal);
+              const details = await Promise.all(ids.map(id => fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`).then(r=>r.json()).catch(()=>({meals:[]}))));
+              const detailedMeals = details.flatMap(d => Array.isArray(d.meals) ? d.meals : []);
+              meals = [...meals, ...detailedMeals];
+            }
+            const withYoutube = meals
+              .filter(m => m && m.strYoutube && m.strYoutube.includes('youtube.com'))
+              .reduce((acc, m) => {
+                const id = extractYouTubeID(m.strYoutube);
+                if (id && !acc.find(x => x.id === id)) {
+                  acc.push({ id, title: m.strMeal || 'Meal Video', thumb: `https://img.youtube.com/vi/${id}/hqdefault.jpg`, url: `https://www.youtube.com/watch?v=${id}` });
+                }
+                return acc;
+              }, [])
+              .slice(0, targetCount);
+            if (!cancelled) { setVideos(withYoutube); setLoading(false); }
+          } catch(e) {
+            if (!cancelled) { setError('Could not load videos from TheMealDB.'); setLoading(false); }
+          }
+        }
+        load();
+        return () => { cancelled = true; };
+      }, [targetCount]);
+      return { videos, loading, error };
+    }
+
+    function extractYouTubeID(url) {
+      if (!url) return null;
+      const reg = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/;
+      const m = url.match(reg);
+      return m ? m[1] : null;
+    }
+
+    function VideoCard({ video, handleAddToCart }) {
+      const [hover, setHover] = useState(false);
+      return (
+        <div className="rounded-2xl overflow-hidden transition p-3 text-center card hover:-translate-y-0.5" onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}>
+          <div className="w-full h-24 md:h-28 overflow-hidden rounded-2xl" style={{boxShadow:`0 0 0 3px ${chroma(getCSS('--ring')).alpha(.35).css()}`}}>
+            {!hover ? (
+              <img src={video.thumb} alt={video.title} className="w-full h-full object-cover rounded-2xl" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'1rem'}} />
+            ) : (
+              <iframe title={video.title} className="w-full h-full object-cover rounded-2xl" style={{width:'100%',height:'100%',borderRadius:'1rem'}} src={`https://www.youtube.com/embed/${video.id}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${video.id}`} frameBorder="0" allow="autoplay; encrypted-media" allowFullScreen></iframe>
+            )}
+          </div>
+          <div className="mt-2">
+            <h3 className="text-xxs font-semibold line-clamp-2" style={{color:getCSS('--accent-2')}}>{video.title}</h3>
+            <a href={video.url} target="_blank" rel="noopener noreferrer" className="text-xxs underline" style={{color:getCSS('--accent')}}>Watch on YouTube</a>
+            <button className="mt-2 px-3 py-1 rounded-full btn-ghost text-xs" onClick={()=>handleAddToCart({ name: video.title, price: 0 })}>Add to Cart</button>
+          </div>
+        </div>
+      );
+    }
+
+    function VideoGallery({ handleAddToCart }){
+      const { videos, loading, error } = useMealDBVideos(20);
+      return (
+        <div>
+          <h2 className="text-2xl font-bold mb-6" style={{color:getCSS('--accent')}}>Cooking Videos (TheMealDB)</h2>
+          {loading && <p style={{color:getCSS('--muted')}}>Loading videos…</p>}
+          {error && <p style={{color:'#f87171'}}>{error}</p>}
+          {!loading && !error && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {videos.map(v => <VideoCard key={v.id} video={v} handleAddToCart={typeof handleAddToCart === 'function' ? handleAddToCart : ()=>{}} />)}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function App(){
+      const [view, setView] = useState('home');
+      const [modalItem, setModalItem] = useState(null);
+      const [searchQuery, setSearchQuery] = useState('');
+      const [submittedComment, setSubmittedComment] = useState('');
+      const [user, setUser] = useState(null);
+      const [cart, setCart] = useState([]);
+      const handleCommentSubmit = (text) => setSubmittedComment(text);
+      const handleLogin = (u) => {
+        setUser(u);
+        setView('profile');
+        aiDB.saveUser(u);
+        aiDB.savePassword(u.email, u.password || 'password123');
+      };
+      const handleRegister = () => { setView('login'); };
+      const handleAddToCart = (item) => {
+        setCart(prev => {
+          const idx = prev.findIndex(x => x.name === item.name);
+          if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx].qty += 1;
+            return updated;
+          }
+          return [...prev, { ...item, qty: 1 }];
+        });
+      };
+      const handleRemoveFromCart = (name) => {
+        setCart(prev => prev.filter(x => x.name !== name));
+      };
+      function CartView() {
+        return (
+          <div className="max-w-lg mx-auto rounded-3xl p-6 card">
+            <h2 className="text-xl font-bold mb-4" style={{color:getCSS('--accent')}}>Your Cart</h2>
+            {cart.length === 0 ? (
+              <p style={{color:getCSS('--muted')}}>Your cart is empty.</p>
+            ) : (
+              <ul className="mb-4">
+                {cart.map(item => (
+                  <li key={item.name} className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <span>{item.name} <span className="text-xxs">x{item.qty}</span></span>
+                    <span>${item.price * item.qty}</span>
+                    <button className="ml-2 px-2 py-1 rounded btn-ghost text-xs" onClick={()=>handleRemoveFromCart(item.name)}>Remove</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="font-bold mt-2">Total: ${cart.reduce((sum, item) => sum + item.price * item.qty, 0)}</div>
+          </div>
+        );
+      }
+      function Profile({ user }) {
+        if (!user) return null;
+        return (
+          <div className="max-w-md mx-auto rounded-3xl p-6 card mt-8">
+            <h2 className="text-2xl font-bold mb-4" style={{color:getCSS('--accent')}}>Profile</h2>
+            <div className="mb-2"><strong>Name:</strong> {user.name}</div>
+            <div className="mb-2"><strong>Email:</strong> {user.email}</div>
+            <div className="mb-2"><strong>Joined:</strong> {user.joined || '2025-08-21'}</div>
+            <div className="mb-2"><strong>Password:</strong> {'*'.repeat(user.password?.length || 8)}</div>
+            <div className="mt-4 text-sm text-gray-500">AI-powered database, cache, and password management simulated.</div>
+          </div>
+        );
+      }
+      return (
+        <ThemeProvider>
+          <div>
+            <Nav view={view} setView={setView} showSearch={view==='recipes'} searchQuery={searchQuery} setSearchQuery={setSearchQuery} cartCount={cart.reduce((sum, item) => sum + item.qty, 0)} />
+            <main className="max-w-7xl mx-auto px-4 pt-32 pb-16">
+              {view === 'home' && <Home onOpenModal={setModalItem} onCommentSubmit={handleCommentSubmit} submittedComment={submittedComment} handleAddToCart={handleAddToCart} />}
+              {view === 'about' && <About />}
+              {view === 'recipes' && <Recipes onOpenModal={setModalItem} searchQuery={searchQuery} handleAddToCart={handleAddToCart} />}
+              {view === 'videos' && <VideoGallery handleAddToCart={handleAddToCart} />}
+              {view === 'cart' && <CartView />}
+              {view === 'login' && <Login onLogin={handleLogin} />}
+              {view === 'register' && <Register onRegister={handleRegister} />}
+              {view === 'profile' && <Profile user={user} />}
+              {user && view !== 'profile' && (
+                <div className="mt-6 rounded-2xl p-3" style={{
+                  background: chroma(getCSS('--panel')).brighten(.2).hex(),
+                  color: '#bbf7d0',
+                  boxShadow: 'var(--shadow)'
+                }}>Welcome back, <strong>{user.name}</strong>!</div>
+              )}
+            </main>
+            <Modal item={modalItem} onClose={() => setModalItem(null)} onCommentSubmit={handleCommentSubmit} />
+            <footer className="text-center py-4 mt-16" style={{
+              background: `linear-gradient(90deg, ${getCSS('--accent')} 0%, ${getCSS('--accent-2')} 100%)`,
+              color: '#000'
+            }}>&copy; 2025 Foodville. All rights reserved.</footer>
+          </div>
+        </ThemeProvider>
+      );
+    }
+
+    // Helpers
+    function getCSS(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#fff'; }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
